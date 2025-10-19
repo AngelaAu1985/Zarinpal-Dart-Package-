@@ -1,42 +1,73 @@
-# This workflow uses actions that are not certified by GitHub.
-# They are provided by a third-party and are governed by
-# separate terms of service, privacy policy, and support
-# documentation.
+# -------------------------------------------------------------
+# 🧩 GitHub Actions Workflow for Dart Projects
+# -------------------------------------------------------------
+# Name: Zarinpal Extended Analytics CI
+# Purpose: CI pipeline for building, analyzing and testing Dart apps
+# -------------------------------------------------------------
 
-name: Dart
+name: "🧠 Zarinpal Extended Analytics CI"
 
+# Run on push to main/dev, PRs, or manual dispatch
 on:
   push:
-    branches: [ "main" ]
+    branches: ["main", "dev"]
   pull_request:
-    branches: [ "main" ]
+    branches: ["main", "dev"]
+  workflow_dispatch:
+
+# Prevent overlapping runs for same ref
+concurrency:
+  group: "dart-ci-${{ github.ref }}"
+  cancel-in-progress: true
 
 jobs:
   build:
+    name: "🧩 Build & Test (Dart)"
     runs-on: ubuntu-latest
-
     steps:
-      - uses: actions/checkout@v4
+      - name: "🗂 Checkout repository"
+        uses: actions/checkout@v4
 
-      # Note: This workflow uses the latest stable version of the Dart SDK.
-      # You can specify other versions if desired, see documentation here:
-      # https://github.com/dart-lang/setup-dart/blob/main/README.md
-      # - uses: dart-lang/setup-dart@v1
-      - uses: dart-lang/setup-dart@9a04e6d73cca37bd455e0608d7e5092f881fd603
+      - name: "⚙️ Setup Dart SDK (stable)"
+        uses: dart-lang/setup-dart@v1
+        with:
+          sdk: stable
 
-      - name: Install dependencies
+      - name: "🧰 Cache Pub packages"
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.pub-cache
+            .dart_tool
+          # include pubspec.lock so cache invalidates properly on dependency changes
+          key: ${{ runner.os }}-dart-${{ hashFiles('**/pubspec.yaml', '**/pubspec.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-dart-
+
+      - name: "📦 Install dependencies"
         run: dart pub get
 
-      # Uncomment this step to verify the use of 'dart format' on each commit.
-      # - name: Verify formatting
-      #   run: dart format --output=none --set-exit-if-changed .
+      - name: "🎨 Check formatting"
+        # Fails the job if formatting is needed. Remove --set-exit-if-changed to only show changes.
+        run: dart format --output=none --set-exit-if-changed .
 
-      # Consider passing '--fatal-infos' for slightly stricter analysis.
-      - name: Analyze project source
-        run: dart analyze
+      - name: "🔍 Run analyzer"
+        # Consider removing --fatal-infos if you prefer warnings to not fail CI
+        run: dart analyze --fatal-infos
 
-      # Your project will need to have tests in test/ and a dependency on
-      # package:test for this step to succeed. Note that Flutter projects will
-      # want to change this to 'flutter test'.
-      - name: Run tests
-        run: dart test
+      - name: "🧪 Run tests"
+        run: dart test --reporter=expanded
+
+      # Optional: build step for CLI apps (uncomment if you have a bin/main.dart)
+      # - name: "🏗 Build executable (optional)"
+      #   run: dart compile exe bin/main.dart -o build/app
+
+      # Optional: upload test artifacts
+      # - name: "📤 Upload test results (optional)"
+      #   uses: actions/upload-artifact@v4
+      #   with:
+      #     name: test-results
+      #     path: test/
+
+      - name: "✅ CI pipeline completed"
+        run: echo "✅ Dart CI completed successfully!"
